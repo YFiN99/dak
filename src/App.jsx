@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import { ArrowDown, RefreshCw, Plus, Twitter, Github, Wallet, Coins } from 'lucide-react';
+import { Toaster, toast } from 'react-hot-toast';  // <--- BARU DITAMBAH
 
 // KONFIGURASI ALAMAT KONTRAK
 const ROUTER_ADDRESS = "0xB0aA1d29339bdFaC68a791d4C13b0698A239D97C";
@@ -135,9 +137,12 @@ export default function App() {
           await (await router.addLiquidityETH(tokenAddr, tAmt, 0, 0, account, deadline, { value: eAmt })).wait();
         }
       }
-      alert("Success!");
+      toast.success('Transaction successful ✓');  // <--- DIGANTI
       fetchStakingData();
-    } catch (e) { alert("Action Failed! Check Balance/Pool."); console.error(e); }
+    } catch (e) { 
+      toast.error('Transaction failed – check balance or pool');  // <--- DIGANTI
+      console.error(e); 
+    }
     setLoading(false);
   };
 
@@ -148,23 +153,26 @@ export default function App() {
       const sig = await provider.getSigner();
       const stakingContract = new ethers.Contract(STAKING_ADDRESS, STAKING_ABI, sig);
       await (await stakingContract.claimReward()).wait();
-      alert("Reward Claimed!");
+      toast.success('Reward claimed ✓');  // <--- DIGANTI
       fetchStakingData();
-    } catch (e) { alert("Claim Failed"); }
+    } catch (e) { 
+      toast.error('Claim failed');  // <--- DIGANTI
+    }
     setLoading(false);
   };
 
   const handleUnstakeAll = async () => {
-    if (!account || stakedBalance === "0") return alert("No staked balance");
+    if (!account || stakedBalance === "0") return toast('No staked balance', { icon: 'ℹ️' });  // <--- DIGANTI (lebih bagus)
     setLoading(true);
     try {
       const sig = await provider.getSigner();
       const stakingContract = new ethers.Contract(STAKING_ADDRESS, STAKING_ABI, sig);
-      // exit() menjalankan withdraw(all) + claimReward() sekaligus
       await (await stakingContract.exit()).wait();
-      alert("Unstaked and Rewards Claimed!");
+      toast.success('Unstaked & rewards claimed ✓');  // <--- DIGANTI
       fetchStakingData();
-    } catch (e) { alert("Unstake Failed"); }
+    } catch (e) { 
+      toast.error('Unstake failed');  // <--- DIGANTI
+    }
     setLoading(false);
   };
 
@@ -266,6 +274,25 @@ export default function App() {
             </button>
           </div>
         </div>
+
+        {/* BARU DITAMBAH: Toaster untuk notifikasi cantik */}
+        <Toaster
+          position="bottom-center"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#166534',
+              color: '#ecfccb',
+              border: '1px solid #10b981',
+              borderRadius: '12px',
+              fontSize: '14px',
+              padding: '12px 24px',
+            },
+            success: {
+              icon: '✓',
+            },
+          }}
+        />
 
         {/* Footer */}
         <div className="flex justify-center gap-6 opacity-30">
