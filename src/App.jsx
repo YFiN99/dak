@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import { ArrowDown, RefreshCw, Plus, Twitter, Github, Wallet, Coins } from 'lucide-react';
