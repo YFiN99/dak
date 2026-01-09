@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import { ArrowDown, RefreshCw, Plus, Twitter, Github, Wallet, Coins } from 'lucide-react';
-import { Toaster, toast } from 'react-hot-toast';  // <--- BARU DITAMBAH
+import { Toaster, toast } from 'react-hot-toast';
 
 // KONFIGURASI ALAMAT KONTRAK
 const ROUTER_ADDRESS = "0xB0aA1d29339bdFaC68a791d4C13b0698A239D97C";
-const WETH_ADDRESS = "0xc2F331332ca914685D773781744b1C589861C9Aa";
+const WETH_ADDRESS = "0xc2F331332ca914685D773781744b1C589861C9Aa"; // X1T di-treat sebagai WETH-like
 const STAKING_ADDRESS = "0xe10D7578286782ED8a5999AA5686aD3013B23926";
 const TOKEN_1_ADDRESS = "0xB1a79747Bf26595B913ddc6580614077C7634aAb";
 
@@ -40,6 +40,8 @@ export default function App() {
   const [amountB, setAmountB] = useState('');
   const [stakedBalance, setStakedBalance] = useState('0');
   const [pendingReward, setPendingReward] = useState('0');
+  const [balanceA, setBalanceA] = useState('0'); // NEW: balance token A
+  const [balanceB, setBalanceB] = useState('0'); // NEW: balance token B
   const [provider, setProvider] = useState(null);
   const [router, setRouter] = useState(null);
 
@@ -53,7 +55,7 @@ export default function App() {
   const [tokenA, setTokenA] = useState(tokens[0]);
   const [tokenB, setTokenB] = useState(tokens[1]);
 
-  // Update Data Staking Secara Berkala
+  // Fetch Staking Data
   useEffect(() => {
     if (account && tab === 'stake' && provider) {
       fetchStakingData();
@@ -71,6 +73,42 @@ export default function App() {
       setPendingReward(ethers.formatEther(earned));
     } catch (e) { console.error("Staking Data Error:", e); }
   };
+
+  // NEW: Fetch Wallet Balances (X1T native + ERC20)
+  const fetchBalances = async () => {
+    if (!account || !provider) return;
+    try {
+      // Balance Token A
+      if (tokenA.isNative) {
+        const bal = await provider.getBalance(account);
+        setBalanceA(ethers.formatEther(bal));
+      } else {
+        const contract = new ethers.Contract(tokenA.address, ERC20_ABI, provider);
+        const bal = await contract.balanceOf(account);
+        setBalanceA(ethers.formatEther(bal));
+      }
+
+      // Balance Token B
+      if (tokenB.isNative) {
+        const bal = await provider.getBalance(account);
+        setBalanceB(ethers.formatEther(bal));
+      } else {
+        const contract = new ethers.Contract(tokenB.address, ERC20_ABI, provider);
+        const bal = await contract.balanceOf(account);
+        setBalanceB(ethers.formatEther(bal));
+      }
+    } catch (e) {
+      console.error("Balance fetch error:", e);
+    }
+  };
+
+  useEffect(() => {
+    if (account && provider) {
+      fetchBalances();
+      const interval = setInterval(fetchBalances, 8000); // refresh tiap 8 detik
+      return () => clearInterval(interval);
+    }
+  }, [account, provider, tokenA, tokenB, tab]);
 
   // Estimasi Harga Swap
   useEffect(() => {
@@ -90,11 +128,16 @@ export default function App() {
 
   const connectWallet = async () => {
     if (!window.ethereum) return alert("Install MetaMask");
-    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-    const prov = new ethers.BrowserProvider(window.ethereum);
-    setAccount(accounts[0]);
-    setProvider(prov);
-    setRouter(new ethers.Contract(ROUTER_ADDRESS, ROUTER_ABI, await prov.getSigner()));
+    try {
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      const prov = new ethers.BrowserProvider(window.ethereum);
+      setAccount(accounts[0]);
+      setProvider(prov);
+      setRouter(new ethers.Contract(ROUTER_ADDRESS, ROUTER_ABI, await prov.getSigner()));
+    } catch (err) {
+      console.error(err);
+      toast.error("Wallet connection failed");
+    }
   };
 
   // Fungsi Utama (Swap, Liquidity, Stake)
@@ -136,10 +179,11 @@ export default function App() {
           await (await router.addLiquidityETH(tokenAddr, tAmt, 0, 0, account, deadline, { value: eAmt })).wait();
         }
       }
-      toast.success('Transaction successful ✓');  // <--- DIGANTI
+      toast.success('Transaction successful ✓');
       fetchStakingData();
+      fetchBalances(); // refresh balance setelah transaksi
     } catch (e) { 
-      toast.error('Transaction failed – check balance or pool');  // <--- DIGANTI
+      toast.error('Transaction failed – check balance or pool');
       console.error(e); 
     }
     setLoading(false);
@@ -152,25 +196,27 @@ export default function App() {
       const sig = await provider.getSigner();
       const stakingContract = new ethers.Contract(STAKING_ADDRESS, STAKING_ABI, sig);
       await (await stakingContract.claimReward()).wait();
-      toast.success('Reward claimed ✓');  // <--- DIGANTI
+      toast.success('Reward claimed ✓');
       fetchStakingData();
+      fetchBalances();
     } catch (e) { 
-      toast.error('Claim failed');  // <--- DIGANTI
+      toast.error('Claim failed');
     }
     setLoading(false);
   };
 
   const handleUnstakeAll = async () => {
-    if (!account || stakedBalance === "0") return toast('No staked balance', { icon: 'ℹ️' });  // <--- DIGANTI (lebih bagus)
+    if (!account || stakedBalance === "0") return toast('No staked balance', { icon: 'ℹ️' });
     setLoading(true);
     try {
       const sig = await provider.getSigner();
       const stakingContract = new ethers.Contract(STAKING_ADDRESS, STAKING_ABI, sig);
       await (await stakingContract.exit()).wait();
-      toast.success('Unstaked & rewards claimed ✓');  // <--- DIGANTI
+      toast.success('Unstaked & rewards claimed ✓');
       fetchStakingData();
+      fetchBalances();
     } catch (e) { 
-      toast.error('Unstake failed');  // <--- DIGANTI
+      toast.error('Unstake failed');
     }
     setLoading(false);
   };
@@ -213,7 +259,7 @@ export default function App() {
               <div className="bg-black/40 border border-emerald-500/10 p-6 rounded-[32px]">
                 <div className="flex justify-between mb-4">
                   <label className="text-[10px] font-black text-emerald-900 uppercase tracking-widest">Stake Token 1</label>
-                  <span className="text-[10px] font-bold text-emerald-400/50 uppercase">Balance: {stakedBalance}</span>
+                  <span className="text-[10px] font-bold text-emerald-400/50 uppercase">Staked: {parseFloat(stakedBalance).toFixed(6)}</span>
                 </div>
                 <div className="flex items-center gap-4">
                   <input type="number" placeholder="0.0" value={amountA} onChange={(e) => setAmountA(e.target.value)} className="bg-transparent text-4xl font-bold text-emerald-500 w-full outline-none placeholder:text-emerald-950" />
@@ -236,7 +282,10 @@ export default function App() {
             /* UI SWAP / LIQUIDITY */
             <div className="space-y-2 relative">
               <div className="bg-black/40 border border-emerald-500/10 p-6 rounded-[32px] hover:border-emerald-500/30 transition-all">
-                <label className="text-[10px] font-black text-emerald-900 uppercase tracking-widest block mb-4">{tab === 'swap' ? 'You Pay' : 'Input A'}</label>
+                <div className="flex justify-between mb-4">
+                  <label className="text-[10px] font-black text-emerald-900 uppercase tracking-widest">{tab === 'swap' ? 'You Pay' : 'Input A'}</label>
+                  <span className="text-[10px] font-bold text-emerald-400/50 uppercase">Balance: {parseFloat(balanceA).toFixed(6)} {tokenA.symbol}</span>
+                </div>
                 <div className="flex items-center gap-4">
                   <input type="number" placeholder="0.0" value={amountA} onChange={(e) => setAmountA(e.target.value)} className="bg-transparent text-4xl font-bold text-emerald-500 w-full outline-none" />
                   <select value={tokenA.address} onChange={(e) => setTokenA(tokens.find(t => t.address === e.target.value))} className="bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 rounded-2xl text-emerald-400 font-bold text-xs outline-none">
@@ -246,13 +295,16 @@ export default function App() {
               </div>
 
               <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
-                <div onClick={() => {setTokenA(tokenB); setTokenB(tokenA)}} className="w-12 h-12 bg-[#050c0a] border-2 border-emerald-500 rounded-2xl flex items-center justify-center text-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)] rotate-45 hover:rotate-0 transition-all cursor-pointer group">
+                <div onClick={() => {const temp = tokenA; setTokenA(tokenB); setTokenB(temp);}} className="w-12 h-12 bg-[#050c0a] border-2 border-emerald-500 rounded-2xl flex items-center justify-center text-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)] rotate-45 hover:rotate-0 transition-all cursor-pointer group">
                   <div className="-rotate-45 group-hover:rotate-0 transition-all">{tab === 'swap' ? <ArrowDown size={20} /> : <Plus size={20} />}</div>
                 </div>
               </div>
 
               <div className="bg-black/40 border border-emerald-500/10 p-6 rounded-[32px] pt-12">
-                <label className="text-[10px] font-black text-emerald-900 uppercase tracking-widest block mb-4">{tab === 'swap' ? 'You Receive' : 'Input B'}</label>
+                <div className="flex justify-between mb-4">
+                  <label className="text-[10px] font-black text-emerald-900 uppercase tracking-widest">{tab === 'swap' ? 'You Receive' : 'Input B'}</label>
+                  <span className="text-[10px] font-bold text-emerald-400/50 uppercase">Balance: {parseFloat(balanceB).toFixed(6)} {tokenB.symbol}</span>
+                </div>
                 <div className="flex items-center gap-4">
                   <input type={tab === 'swap' ? "text" : "number"} readOnly={tab === 'swap'} placeholder="0.0" value={amountB} onChange={(e) => setAmountB(e.target.value)} className="bg-transparent text-4xl font-bold text-emerald-100 w-full outline-none" />
                   <select value={tokenB.address} onChange={(e) => setTokenB(tokens.find(t => t.address === e.target.value))} className="bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 rounded-2xl text-emerald-400 font-bold text-xs outline-none">
@@ -274,7 +326,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* BARU DITAMBAH: Toaster untuk notifikasi cantik */}
+        {/* Toaster */}
         <Toaster
           position="bottom-center"
           toastOptions={{
