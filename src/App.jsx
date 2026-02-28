@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import { ArrowDown, RefreshCw, Plus, Twitter, Github, Wallet, Coins } from 'lucide-react';
 import { Toaster, toast } from 'react-hot-toast';
+import DakAI from './DakAI'; // Import Komponen AI
 
 // KONFIGURASI ALAMAT KONTRAK
 const ROUTER_ADDRESS = "0xB0aA1d29339bdFaC68a791d4C13b0698A239D97C";
@@ -40,8 +41,8 @@ export default function App() {
   const [amountB, setAmountB] = useState('');
   const [stakedBalance, setStakedBalance] = useState('0');
   const [pendingReward, setPendingReward] = useState('0');
-  const [balanceA, setBalanceA] = useState('0'); // NEW: balance token A
-  const [balanceB, setBalanceB] = useState('0'); // NEW: balance token B
+  const [balanceA, setBalanceA] = useState('0'); 
+  const [balanceB, setBalanceB] = useState('0'); 
   const [provider, setProvider] = useState(null);
   const [router, setRouter] = useState(null);
 
@@ -74,11 +75,9 @@ export default function App() {
     } catch (e) { console.error("Staking Data Error:", e); }
   };
 
-  // NEW: Fetch Wallet Balances (X1T native + ERC20)
   const fetchBalances = async () => {
     if (!account || !provider) return;
     try {
-      // Balance Token A
       if (tokenA.isNative) {
         const bal = await provider.getBalance(account);
         setBalanceA(ethers.formatEther(bal));
@@ -88,7 +87,6 @@ export default function App() {
         setBalanceA(ethers.formatEther(bal));
       }
 
-      // Balance Token B
       if (tokenB.isNative) {
         const bal = await provider.getBalance(account);
         setBalanceB(ethers.formatEther(bal));
@@ -105,12 +103,11 @@ export default function App() {
   useEffect(() => {
     if (account && provider) {
       fetchBalances();
-      const interval = setInterval(fetchBalances, 8000); // refresh tiap 8 detik
+      const interval = setInterval(fetchBalances, 8000); 
       return () => clearInterval(interval);
     }
   }, [account, provider, tokenA, tokenB, tab]);
 
-  // Estimasi Harga Swap
   useEffect(() => {
     const fetchPrice = async () => {
       if (!amountA || !router || tab !== 'swap' || tokenA.address === tokenB.address) {
@@ -140,7 +137,6 @@ export default function App() {
     }
   };
 
-  // Fungsi Utama (Swap, Liquidity, Stake)
   const handleAction = async () => {
     if (!account) return connectWallet();
     setLoading(true);
@@ -181,7 +177,7 @@ export default function App() {
       }
       toast.success('Transaction successful ✓');
       fetchStakingData();
-      fetchBalances(); // refresh balance setelah transaksi
+      fetchBalances(); 
     } catch (e) { 
       toast.error('Transaction failed – check balance or pool');
       console.error(e); 
@@ -223,11 +219,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#050c0a] text-emerald-500 flex flex-col items-center justify-center p-4 font-sans relative overflow-hidden">
-      {/* Glow Effect */}
       <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-emerald-900/10 blur-[130px] rounded-full"></div>
       
       <div className="z-10 w-full max-w-[480px] space-y-6">
-        {/* Header */}
         <div className="flex justify-between items-center px-2">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 border-2 border-emerald-500 rounded-xl flex items-center justify-center bg-emerald-500/5 shadow-[0_0_15px_rgba(16,185,129,0.3)]">
@@ -244,9 +238,7 @@ export default function App() {
           )}
         </div>
 
-        {/* Main Card */}
         <div className="bg-[#0a1814]/90 backdrop-blur-2xl border border-emerald-500/20 rounded-[44px] p-6 shadow-2xl">
-          {/* Tabs */}
           <div className="flex bg-black/40 p-1.5 rounded-[22px] border border-emerald-900/30 mb-8">
             {['swap', 'liquidity', 'stake'].map((t) => (
               <button key={t} onClick={() => {setTab(t); setAmountA(''); setAmountB('');}} className={`flex-1 py-3 rounded-[18px] text-[10px] font-black uppercase tracking-[0.15em] transition-all ${tab === t ? 'bg-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'text-emerald-900 hover:text-emerald-700'}`}>{t}</button>
@@ -254,7 +246,6 @@ export default function App() {
           </div>
 
           {tab === 'stake' ? (
-            /* UI STAKING */
             <div className="space-y-4">
               <div className="bg-black/40 border border-emerald-500/10 p-6 rounded-[32px]">
                 <div className="flex justify-between mb-4">
@@ -279,7 +270,6 @@ export default function App() {
               </div>
             </div>
           ) : (
-            /* UI SWAP / LIQUIDITY */
             <div className="space-y-2 relative">
               <div className="bg-black/40 border border-emerald-500/10 p-6 rounded-[32px] hover:border-emerald-500/30 transition-all">
                 <div className="flex justify-between mb-4">
@@ -315,7 +305,6 @@ export default function App() {
             </div>
           )}
 
-          {/* Action Button */}
           <div className="mt-8 flex flex-col items-center">
             <span className="text-[9px] font-black text-emerald-900 uppercase tracking-[0.5em] mb-3 opacity-60 italic">Secured Protocol</span>
             <button onClick={handleAction} disabled={(!amountA && tab !== 'stake') || loading} className="w-full h-20 bg-emerald-500 hover:bg-emerald-400 text-black rounded-[28px] font-black text-xl tracking-[0.3em] transition-all shadow-[0_0_30px_rgba(16,185,129,0.2)] disabled:opacity-50 disabled:cursor-not-allowed">
@@ -326,7 +315,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Toaster */}
         <Toaster
           position="bottom-center"
           toastOptions={{
@@ -339,18 +327,24 @@ export default function App() {
               fontSize: '14px',
               padding: '12px 24px',
             },
-            success: {
-              icon: '✓',
-            },
+            success: { icon: '✓' },
           }}
         />
 
-        {/* Footer */}
         <div className="flex justify-center gap-6 opacity-30">
           <a href="https://twitter.com/maxi_dak" target="_blank" rel="noreferrer" className="hover:text-emerald-400 transition-colors"><Twitter size={18} /></a>
           <a href="https://github.com/YFiN99" target="_blank" rel="noreferrer" className="hover:text-emerald-400 transition-colors"><Github size={18} /></a>
         </div>
       </div>
+
+      {/* INTEGRASI KOMPONEN DAK AI */}
+      <DakAI 
+        account={account} 
+        balanceA={balanceA} 
+        symbolA={tokenA.symbol} 
+        setAmountA={setAmountA} 
+      />
+
     </div>
   );
 }
