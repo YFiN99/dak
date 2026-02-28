@@ -11,10 +11,10 @@ const STAKING_ADDRESS = "0xe10D7578286782ED8a5999AA5686aD3013B23926";
 const TOKEN_1_ADDRESS = "0xB1a79747Bf26595B913ddc6580614077C7634aAb";
 
 const X1_NETWORK_PARAMS = {
-  chainId: '0xC4',
-  chainName: 'X1 Network',
+  chainId: '0x2A1A', // 10778 dalam format Hex (Wajib Hex untuk MetaMask)
+  chainName: 'X1 Maculatus Testnet',
   nativeCurrency: { name: 'X1T', symbol: 'X1T', decimals: 18 },
-  rpcUrls: ['https://x1-testnet.infura.io/v3/YOUR_INFURA_KEY'], 
+  rpcUrls: ['https://maculatus-rpc.x1eco.com/'], // RPC dari Whitepaper
   blockExplorerUrls: ['https://maculatus-scan.x1eco.com/']
 };
 
